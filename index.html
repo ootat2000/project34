@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>Сапёр</title>
+<style>
+  canvas {
+    border: 1px solid #000;
+  }
+</style>
+</head>
+<body>
+<canvas id="minesweeper" width="480" height="480"></canvas>
+<script>
+const canvas = document.getElementById('minesweeper');
+const ctx = canvas.getContext('2d');
+
+const CELL_SIZE = 30;
+const WIDTH = canvas.width / CELL_SIZE;
+const HEIGHT = canvas.height / CELL_SIZE;
+const MINES_COUNT = 40;
+
+const colors = [
+  'black', 'blue', 'green', 'red', 'purple', 'darkred', 'teal', 'black', 'gray'
+];
+
+class Cell {
+  constructor() {
+    this.isMine = false;
+    this.isOpen = false;
+    this.isFlagged = false;
+    this.adjacentMines = 0;
+  }
+}
+
+class Game {
+  constructor() {
+    this.board = [];
+    for (let y=0; y<HEIGHT; y++) {
+      this.board[y] = [];
+      for (let x=0; x<WIDTH; x++) {
+        this.board[y][x] = new Cell();
+      }
+    }
+    this.gameOver = false;
+    this.win = false;
+    this.placeMines();
+    this.calculateAdjacents();
+  }
+
+  placeMines() {
+    let count = 0;
+    while (count < MINES_COUNT) {
+      const x = Math.floor(Math.random() * WIDTH);
+      const y = Math.floor(Math.random() * HEIGHT);
+      if (!this.board[y][x].isMine) {
+        this.board[y][x].isMine = true;
+        count++;
+      }
+    }
+  }
+
+  calculateAdjacents() {
+    for (let y=0; y<HEIGHT; y++) {
+      for (let x=0; x<WIDTH; x++) {
+        if (this.board[y][x].isMine) continue;
+        let count = 0;
+        for (let dy=-1; dy<=1; dy++) {
+          for (let dx=-1; dx<=1; dx++) {
+            const nx=x+dx, ny=y+dy;
+            if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
+              if (this.board[ny][nx].isMine) count++;
+            }
+          }
+        }
+        this.board[y][x].adjacentMines = count;
+      }
+    }
+  }
+
+  openCell(x, y) {
+    if (this.gameOver || this.board[y][x].isOpen || this.board[y][x].isFlagged) return;
+
+    this.board[y][x].isOpen = true;
+
+    if (this.board[y][x].isMine) {
+      this.gameOver = true;
+      this.win = false;
+      return;
+    }
+
+    if (this.board[y][x].adjacentMines === 0) {
+      for (let dy=-1; dy<=1; dy++) {
+        for (let dx=-1; dx<=1; dx++) {
+          const nx=x+dx, ny=y+dy;
+          if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
+            if (!this.board[ny][nx].isOpen) {
+              this.openCell(nx, ny);
+            }
+          }
+        }
+      }
+    }
+
+    // Проверка победы
+    let openedCount = 0;
+    for (let row of this.board) {
+      for (let cell of row) {
+        if (cell.isOpen && !cell.isMine) openedCount++;
+      }
+    }
+    if (openedCount === WIDTH*HEIGHT - MINES_COUNT) {
+      this.gameOver = true;
+      this.win = true;
+    }
+  }
+
+  toggleFlag(x, y) {
+    if (!this.board[y][x].isOpen) {
+      this.board[y][x].isFlagged = !this.board[y][x].isFlagged;
+    }
+  }
+}
+
+const game = new Game();
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let y=0; y<HEIGHT; y++) {
+    for (let x=0; x<WIDTH; x++) {
+      const cell = game.board[y][x];
+      const rectX = x * CELL_SIZE;
+      const rectY = y * CELL_SIZE;
+
+      ctx.strokeStyle = 'gray';
+      ctx.strokeRect(rectX, rectY, CELL_SIZE, CELL_SIZE);
+
+      if (cell.isOpen) {
+        if (cell.isMine) {
+          ctx.fillStyle = 'black';
+          ctx.beginPath();
+          ctx.arc(rectX + CELL_SIZE/2, rectY + CELL_SIZE/2, CELL_SIZE/3, 0, Math.PI*2);
+          ctx.fill();
+        } else if (cell.adjacentMines > 0) {
+          ctx.fillStyle = colors[cell.adjacentMines];
+          ctx.font = `bold ${CELL_SIZE/2}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(cell.adjacentMines, rectX + CELL_SIZE/2, rectY + CELL_SIZE/2);
+        }
+      } else if (cell.isFlagged) {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.moveTo(rectX + 5, rectY + 5);
+        ctx.lineTo(rectX + 5, rectY + CELL_SIZE - 5);
+        ctx.lineTo(rectX + CELL_SIZE - 5, rectY + (CELL_SIZE/2));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  if (game.gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = `bold 24px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(game.win ? 'Вы выиграли!' : 'Вы проиграли!', canvas.width/2, canvas.height/2);
+  }
+}
+
+canvas.addEventListener('click', (e) => {
+  if (game.gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+  game.openCell(x, y);
+  draw();
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (game.gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+  game.toggleFlag(x, y);
+  draw();
+});
+
+// Первый рендер
+draw();
+</script>
+</body>
+</html>
