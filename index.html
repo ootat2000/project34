@@ -44,6 +44,7 @@ class Game {
     }
     this.gameOver = false;
     this.win = false;
+    this.firstClick = true; // добавляем флаг первого клика
     this.placeMines();
     this.calculateAdjacents();
   }
@@ -81,6 +82,14 @@ class Game {
   openCell(x, y) {
     if (this.gameOver || this.board[y][x].isOpen || this.board[y][x].isFlagged) return;
 
+    // Обработка первого клика
+    if (this.firstClick) {
+      this.firstClick = false;
+      // Перед первым открытием клетки случайным образом размещаем мины, исключая эту клетку
+      this.relocateMines(x, y);
+      this.calculateAdjacents();
+    }
+
     this.board[y][x].isOpen = true;
 
     if (this.board[y][x].isMine) {
@@ -117,7 +126,7 @@ class Game {
   }
 
   toggleFlag(x, y) {
-    if (!this.board[y][x].isOpen) {
+    if (!this.board[y][x].isOpen && !this.gameOver) {
       this.board[y][x].isFlagged = !this.board[y][x].isFlagged;
     }
   }
@@ -128,6 +137,26 @@ class Game {
         if (this.board[y][x].isMine) {
           this.board[y][x].isOpen = true;
         }
+      }
+    }
+  }
+
+  // Функция для перемещения мин, исключая клетку с первым кликом
+  relocateMines(excludeX, excludeY) {
+    // Удаляем все мины
+    for (let y=0; y<HEIGHT; y++) {
+      for (let x=0; x<WIDTH; x++) {
+        this.board[y][x].isMine = false;
+      }
+    }
+    // Распределяем мины заново, исключая выбранную клетку
+    let count = 0;
+    while (count < MINES_COUNT) {
+      const x = Math.floor(Math.random() * WIDTH);
+      const y = Math.floor(Math.random() * HEIGHT);
+      if ((x !== excludeX || y !== excludeY) && !this.board[y][x].isMine) {
+        this.board[y][x].isMine = true;
+        count++;
       }
     }
   }
@@ -147,8 +176,7 @@ function draw() {
       ctx.strokeRect(rectX, rectY, CELL_SIZE, CELL_SIZE);
 
       if (cell.isOpen) {
-        // Закрашиваем открытые клетки серым цветом
-        ctx.fillStyle = 'lightgray'; // Можно заменить на 'gray' или любой другой цвет
+        ctx.fillStyle = 'lightgray';
         ctx.fillRect(rectX, rectY, CELL_SIZE, CELL_SIZE);
 
         if (cell.isMine) {
