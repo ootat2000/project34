@@ -102,7 +102,10 @@ class Game {
       this.firstClick = false;
       this.relocateMines(x, y);
       this.calculateAdjacents();
-      this.openEmptyArea(x, y);
+      // Открываем область вокруг выбранной клетки, если она не содержит мин
+      if (!this.board[y][x].isMine) {
+        this.openEmptyArea(x, y);
+      }
       this.checkWin();
       return;
     }
@@ -262,7 +265,12 @@ canvas.addEventListener('contextmenu', (e) => {
   draw();
 });
 
-// Первый рендер
+// Добавим метод toggleFlag в класс Game
+Game.prototype.toggleFlag = function(x, y) {
+  if (this.board[y][x].isOpen) return;
+  this.board[y][x].isFlagged = !this.board[y][x].isFlagged;
+}
+
 draw();
 </script>
 </body>
