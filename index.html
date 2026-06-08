@@ -136,6 +136,10 @@ function draw() {
       ctx.strokeRect(rectX, rectY, CELL_SIZE, CELL_SIZE);
 
       if (cell.isOpen) {
+        // Закрашиваем открытые клетки серым цветом
+        ctx.fillStyle = 'lightgray'; // Можно заменить на 'gray' или любой другой цвет
+        ctx.fillRect(rectX, rectY, CELL_SIZE, CELL_SIZE);
+
         if (cell.isMine) {
           ctx.fillStyle = 'black';
           ctx.beginPath();
