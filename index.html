@@ -209,16 +209,3 @@ draw();
 </script>
 </body>
 </html>
-  if (game.gameOver) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
-  game.toggleFlag(x, y);
-  draw();
-});
-
-// Первый рендер
-draw();
-</script>
-</body>
-</html>
