@@ -44,7 +44,7 @@ class Game {
     }
     this.gameOver = false;
     this.win = false;
-    this.firstClick = true; // добавляем флаг первого клика
+    this.firstClick = true; // флаг первого клика
     this.placeMines();
     this.calculateAdjacents();
   }
@@ -88,6 +88,11 @@ class Game {
       // Перед первым открытием клетки случайным образом размещаем мины, исключая эту клетку
       this.relocateMines(x, y);
       this.calculateAdjacents();
+      // Открываем область вокруг первой клетки
+      this.openEmptyArea(x, y);
+      // Проверка победы после открытия
+      this.checkWin();
+      return; // Выйти, чтобы не открывать выбранную клетку еще раз
     }
 
     this.board[y][x].isOpen = true;
@@ -95,24 +100,45 @@ class Game {
     if (this.board[y][x].isMine) {
       this.gameOver = true;
       this.win = false;
-      this.revealMines(); // Вскрываем все мины при проигрыше
+      this.revealMines();
       return;
     }
 
     if (this.board[y][x].adjacentMines === 0) {
-      for (let dy=-1; dy<=1; dy++) {
-        for (let dx=-1; dx<=1; dx++) {
-          const nx=x+dx, ny=y+dy;
-          if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
-            if (!this.board[ny][nx].isOpen) {
-              this.openCell(nx, ny);
+      this.openEmptyArea(x, y);
+    }
+
+    this.checkWin();
+  }
+
+  // Рекурсивное открытие пустых клеток и их соседей
+  openEmptyArea(x, y) {
+    const stack = [];
+    stack.push({x, y});
+    while (stack.length > 0) {
+      const {x, y} = stack.pop();
+      const cell = this.board[y][x];
+
+      if (cell.isOpen || cell.isFlagged) continue;
+      cell.isOpen = true;
+
+      if (cell.adjacentMines === 0 && !cell.isMine) {
+        // открыть соседние клетки
+        for (let dy=-1; dy<=1; dy++) {
+          for (let dx=-1; dx<=1; dx++) {
+            const nx=x+dx, ny=y+dy;
+            if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
+              if (!this.board[ny][nx].isOpen && !this.board[ny][nx].isFlagged) {
+                stack.push({x:nx, y:ny});
+              }
             }
           }
         }
       }
     }
+  }
 
-    // Проверка победы
+  checkWin() {
     let openedCount = 0;
     for (let row of this.board) {
       for (let cell of row) {
@@ -141,15 +167,13 @@ class Game {
     }
   }
 
-  // Функция для перемещения мин, исключая клетку с первым кликом
+  // Перемещение мин, исключая первую открытую клетку
   relocateMines(excludeX, excludeY) {
-    // Удаляем все мины
     for (let y=0; y<HEIGHT; y++) {
       for (let x=0; x<WIDTH; x++) {
         this.board[y][x].isMine = false;
       }
     }
-    // Распределяем мины заново, исключая выбранную клетку
     let count = 0;
     while (count < MINES_COUNT) {
       const x = Math.floor(Math.random() * WIDTH);
