@@ -45,16 +45,31 @@ class Game {
     this.gameOver = false;
     this.win = false;
     this.firstClick = true; // флаг первого клика
-    this.placeMines();
-    this.calculateAdjacents();
+    // Мины не размещаются сразу
   }
 
-  placeMines() {
+  placeMinesSafe(excludeX, excludeY) {
+    // Создаем список безопасных клеток (выбранная и соседи)
+    const safeCells = [{ x: excludeX, y: excludeY }];
+    for (let dy=-1; dy<=1; dy++) {
+      for (let dx=-1; dx<=1; dx++) {
+        const nx=excludeX+dx, ny=excludeY+dy;
+        if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
+          safeCells.push({ x: nx, y: ny });
+        }
+      }
+    }
+    const safeSet = new Set(safeCells.map(c => c.y + ',' + c.x));
+
+    // Распределяем мины, исключая безопасные клетки
     let count = 0;
     while (count < MINES_COUNT) {
       const x = Math.floor(Math.random() * WIDTH);
       const y = Math.floor(Math.random() * HEIGHT);
-      if (!this.board[y][x].isMine) {
+      if (
+        !this.board[y][x].isMine &&
+        !safeSet.has(y + ',' + x)
+      ) {
         this.board[y][x].isMine = true;
         count++;
       }
@@ -82,51 +97,48 @@ class Game {
   openCell(x, y) {
     if (this.gameOver || this.board[y][x].isOpen || this.board[y][x].isFlagged) return;
 
-    // Обработка первого клика
+    // Первый клик
     if (this.firstClick) {
       this.firstClick = false;
-      // Перед первым открытием клетки случайным образом размещаем мины, исключая эту клетку
       this.relocateMines(x, y);
       this.calculateAdjacents();
-      // Открываем область вокруг первой клетки
       this.openEmptyArea(x, y);
-      // Проверка победы после открытия
       this.checkWin();
-      return; // Выйти, чтобы не открывать выбранную клетку еще раз
-    }
-
-    this.board[y][x].isOpen = true;
-
-    if (this.board[y][x].isMine) {
-      this.gameOver = true;
-      this.win = false;
-      this.revealMines();
       return;
     }
 
-    if (this.board[y][x].adjacentMines === 0) {
+    const cell = this.board[y][x];
+    cell.isOpen = true;
+
+    if (cell.isMine) {
+      this.gameOver = true;
+      this.win = false;
+      this.revealMines();
+      alert('Игра окончена! Проигрыш.');
+      return;
+    }
+
+    if (cell.adjacentMines === 0) {
       this.openEmptyArea(x, y);
     }
 
     this.checkWin();
   }
 
-  // Рекурсивное открытие пустых клеток и их соседей
+  // Открытие пустых клеток и их соседей
   openEmptyArea(x, y) {
-    const stack = [];
-    stack.push({x, y});
+    const stack = [{x, y}];
     while (stack.length > 0) {
-      const {x, y} = stack.pop();
-      const cell = this.board[y][x];
+      const {x: cx, y: cy} = stack.pop();
+      const cell = this.board[cy][cx];
 
       if (cell.isOpen || cell.isFlagged) continue;
       cell.isOpen = true;
 
       if (cell.adjacentMines === 0 && !cell.isMine) {
-        // открыть соседние клетки
         for (let dy=-1; dy<=1; dy++) {
           for (let dx=-1; dx<=1; dx++) {
-            const nx=x+dx, ny=y+dy;
+            const nx = cx+dx, ny=cy+dy;
             if (nx>=0 && nx<WIDTH && ny>=0 && ny<HEIGHT) {
               if (!this.board[ny][nx].isOpen && !this.board[ny][nx].isFlagged) {
                 stack.push({x:nx, y:ny});
@@ -148,12 +160,6 @@ class Game {
     if (openedCount === WIDTH*HEIGHT - MINES_COUNT) {
       this.gameOver = true;
       this.win = true;
-    }
-  }
-
-  toggleFlag(x, y) {
-    if (!this.board[y][x].isOpen && !this.gameOver) {
-      this.board[y][x].isFlagged = !this.board[y][x].isFlagged;
     }
   }
 
